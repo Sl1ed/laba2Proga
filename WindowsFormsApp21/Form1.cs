@@ -26,15 +26,26 @@ namespace WindowsFormsApp21
             for (int i = 0; i < 2; i++)
             {
                 blueball[i] = new Ball(new Point(1085, (i*200)+ 200), "Left", true, Brushes.Blue);
-                redball[0].ChangeDirection += new AsyncMove(blueball[i].Move);
+                redball[0].ChangeDirection += new AsyncMove(blueball[i].Nazad);
             }
+            InitializeComponent();
             for (int i = 0; i < 2; i++)
             {
-                AsyncMove mydel1 = new AsyncMove(redball[i].Move); // инкапсуляция функции движения шариков
-                mydel1.BeginInvoke(null, null);
+                WaitCallback del = new WaitCallback(redball[i].RightMove); // инкапсуляция функции
+                ThreadPool.QueueUserWorkItem(del);// запрос потока из пула потоков для выполнения функции
+                Task.Factory.StartNew(() =>
+                {
+                    Parallel.For(0, 2, cur =>
+                    {
+                        blueball[cur].LeftMove();
+                        Invoke((Action)delegate
+                        {
+                            Text = string.Format("Поток - {0}", cur);
+                        });
+                    });
+                });
             }
             DoubleBuffered = true;
-            InitializeComponent();
         }
 
 
@@ -68,6 +79,7 @@ namespace WindowsFormsApp21
             Size size;
             bool stop;
             string direction;
+            bool bluestart = false;
 
             public event AsyncMove ChangeDirection;
 
@@ -84,9 +96,27 @@ namespace WindowsFormsApp21
             {
                 context.FillEllipse(this.color, new Rectangle(this.position, this.size));
             }
+            bool live = true;
+            public void LeftMove()
+            {
+                while (live)
+                {
+                    if (bluestart)
+                        position.X -= 10;
+                    Thread.Sleep(100);
+                    if (position.X <= 30)
+                    {
+                        live = false;
+                    }
+                }
+            }
+            public void Nazad()
+            {
+                bluestart = true;
 
+            }
 
-            public void Move()
+            public void RightMove(object obj)
             {
 
                 while (direction == "Right" && stop == true)
@@ -109,22 +139,11 @@ namespace WindowsFormsApp21
                     }
                 }
 
-                while (direction == "Left" && stop == true)
-                {
-                    Thread.Sleep(100);
-                    position.X -= 10;
-
-                    if (position.X <= 30)
-                    {
-                        StopMove();
-                    }
-                }
             }
 
             public void StopMove()
             {
                 this.stop = false;
-
             }
 
 
