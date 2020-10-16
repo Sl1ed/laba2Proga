@@ -35,15 +35,7 @@ namespace WindowsFormsApp21
                 WaitCallback del = new WaitCallback(redball[i].RightMove); // инкапсуляция функции
                 ThreadPool.QueueUserWorkItem(del); // запрос потока из пула потоков для выполнения функции
             }
-            Action[] actions = new Action[2];
-            for (int i = 0; i < 2; i++)
-            {
-                actions[i] = new Action(blueball[i].LeftMove);
-            }
-            Task.Factory.StartNew(() =>
-            {
-                Parallel.Invoke(actions);
-            });
+            
 
         }
 
@@ -94,20 +86,23 @@ namespace WindowsFormsApp21
                 context.FillEllipse(this.color, new Rectangle(this.position, this.size));
             }
             bool live = true;
-            public void LeftMove()
+            public async Task LeftMove()
             {
-
-                while (live)
+                await Task.Run(() =>
                 {
-                   
+                    while (live)
+                    {
+
                         if (bluestart)
                             position.X -= 10;
                         Thread.Sleep(100);
-                    if (position.X <= 30)
-                    {
-                        live = false;
+                        if (position.X <= 30)
+                        {
+                            live = false;
+                        }
                     }
-                }
+                });
+
             }
             public void Nazad()
             {
@@ -164,6 +159,17 @@ namespace WindowsFormsApp21
         private void зановоToolStripMenuItem_Click(object sender, EventArgs e)
         {
             Application.Restart();
+        }
+
+        private void Form1_Shown(object sender, EventArgs e)
+        {
+            for (int i = 0; i < 2; i++)
+            {
+                Invoke((Action)async delegate
+                {
+                    await blueball[i].LeftMove();
+                });
+            }
         }
     }
 }
