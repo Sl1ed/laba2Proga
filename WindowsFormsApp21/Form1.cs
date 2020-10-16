@@ -17,7 +17,6 @@ namespace WindowsFormsApp21
         public delegate void AsyncMove();
         Ball[] redball = new Ball[2];
         Ball[] blueball = new Ball[2];
-        private CancellationTokenSource cancelToken = new CancellationTokenSource();
         public Form1()
         {
             for (int i = 0; i < 2; i++)
@@ -36,32 +35,17 @@ namespace WindowsFormsApp21
                 WaitCallback del = new WaitCallback(redball[i].RightMove); // инкапсуляция функции
                 ThreadPool.QueueUserWorkItem(del); // запрос потока из пула потоков для выполнения функции
             }
-                ParallelOptions partOpts = new ParallelOptions();
-                partOpts.CancellationToken = cancelToken.Token;
-                Task.Factory.StartNew(() =>
-                {
-
-                    Parallel.For(0, 2, cur =>
-                    {
-                        try
-                        {
-                            blueball[cur].LeftMove(partOpts);
-                            Invoke((Action)delegate
-                            {
-                                Text = string.Format("Поток - {0}", cur);
-                            });
-                        }
-                        catch (OperationCanceledException ex)
-                        {
-                            Invoke((Action)delegate
-                            {
-                                Text = string.Format("{0}", ex.Message);
-                            });
-                        }
-                    });
-                });
-
+            Action[] actions = new Action[2];
+            for (int i = 0; i < 2; i++)
+            {
+                actions[i] = new Action(blueball[i].LeftMove);
             }
+            Task.Factory.StartNew(() =>
+            {
+                Parallel.Invoke(actions);
+            });
+
+        }
 
 
         private void timer1_Tick(object sender, EventArgs e)
@@ -110,25 +94,17 @@ namespace WindowsFormsApp21
                 context.FillEllipse(this.color, new Rectangle(this.position, this.size));
             }
             bool live = true;
-            public void LeftMove(ParallelOptions obj)
+            public void LeftMove()
             {
 
                 while (live)
                 {
-                    try
-                    {
-                        obj.CancellationToken.ThrowIfCancellationRequested();
+                   
                         if (bluestart)
                             position.X -= 10;
                         Thread.Sleep(100);
-                        if (position.X <= 30)
-                        {
-                            live = false;
-                        }
-                    }
-                    catch(OperationCanceledException ex)
+                    if (position.X <= 30)
                     {
-                        MessageBox.Show(string.Format("{0}", ex.Message));
                         live = false;
                     }
                 }
@@ -188,11 +164,6 @@ namespace WindowsFormsApp21
         private void зановоToolStripMenuItem_Click(object sender, EventArgs e)
         {
             Application.Restart();
-        }
-
-        private void button1_Click_1(object sender, EventArgs e)
-        {
-            cancelToken.Cancel();
         }
     }
 }
